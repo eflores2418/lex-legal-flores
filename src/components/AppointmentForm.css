@@ -1,0 +1,33 @@
+.appointment-form-container {
+  padding: 1rem 0;
+}
+
+.appointment-form {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.reminder-info {
+  padding: 1.5rem 2rem;
+  background: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  margin: 0 2rem;
+}
+
+.reminder-info p {
+  margin: 0;
+  color: #1565c0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .reminder-info {
+    margin: 0 1.5rem;
+  }
+}
+
+/* Made with Bob */
