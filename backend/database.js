@@ -1,20 +1,13 @@
-const sqlite3 = require('sqlite3').verbose();
+const Database = require('better-sqlite3');
 const path = require('path');
 
 // Create database connection
-const db = new sqlite3.Database(path.join(__dirname, 'lawyer_clients.db'), (err) => {
-  if (err) {
-    console.error('Error opening database:', err.message);
-  } else {
-    console.log('Connected to the SQLite database.');
-    initializeDatabase();
-  }
-});
+const db = new Database(path.join(__dirname, 'lawyer_clients.db'));
+console.log('Connected to the SQLite database.');
 
 // Initialize database tables
 function initializeDatabase() {
-  // Clients table
-  db.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS clients (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -25,17 +18,8 @@ function initializeDatabase() {
       tasks TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `, (err) => {
-    if (err) {
-      console.error('Error creating clients table:', err.message);
-    } else {
-      console.log('Clients table ready.');
-    }
-  });
+    );
 
-  // Appointments table
-  db.run(`
     CREATE TABLE IF NOT EXISTS appointments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       client_id INTEGER NOT NULL,
@@ -49,17 +33,8 @@ function initializeDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
-    )
-  `, (err) => {
-    if (err) {
-      console.error('Error creating appointments table:', err.message);
-    } else {
-      console.log('Appointments table ready.');
-    }
-  });
+    );
 
-  // Reminders table
-  db.run(`
     CREATE TABLE IF NOT EXISTS reminders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       appointment_id INTEGER NOT NULL,
@@ -67,15 +42,14 @@ function initializeDatabase() {
       sent INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
-    )
-  `, (err) => {
-    if (err) {
-      console.error('Error creating reminders table:', err.message);
-    } else {
-      console.log('Reminders table ready.');
-    }
-  });
+    );
+  `);
+  
+  console.log('Database tables ready.');
 }
+
+// Initialize on startup
+initializeDatabase();
 
 module.exports = db;
 
