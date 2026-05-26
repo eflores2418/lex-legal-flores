@@ -289,8 +289,8 @@ app.get('/api/stats', (req, res) => {
   try {
     const totalClients = db.prepare('SELECT COUNT(*) as count FROM clients').get().count;
     const totalAppointments = db.prepare('SELECT COUNT(*) as count FROM appointments').get().count;
-    const upcomingAppointments = db.prepare('SELECT COUNT(*) as count FROM appointments WHERE appointment_date > ? AND status = "scheduled"').get(new Date().toISOString()).count;
-    const completedAppointments = db.prepare('SELECT COUNT(*) as count FROM appointments WHERE status = "completed"').get().count;
+    const upcomingAppointments = db.prepare("SELECT COUNT(*) as count FROM appointments WHERE appointment_date > ? AND status = 'scheduled'").get(new Date().toISOString()).count;
+    const completedAppointments = db.prepare("SELECT COUNT(*) as count FROM appointments WHERE status = 'completed'").get().count;
     
     res.json({
       totalClients,
