@@ -1,56 +1,79 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const { Pool } = require('pg');
 
-// Create database connection
-const db = new Database(path.join(__dirname, 'lawyer_clients.db'));
-console.log('Connected to the SQLite database.');
+// Database connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://lex_legal_flores_user:hKuJC0ZPg7NjYeBllLKib49u9XUDWq5r@dpg-d8av2se7r5hc73fdqb6g-a/lex_legal_flores',
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
 // Initialize database tables
-function initializeDatabase() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS clients (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT,
-      phone TEXT,
-      address TEXT,
-      description TEXT,
-      tasks TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS appointments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      client_id INTEGER NOT NULL,
-      title TEXT NOT NULL,
-      description TEXT,
-      appointment_date DATETIME NOT NULL,
-      duration INTEGER DEFAULT 60,
-      location TEXT,
-      status TEXT DEFAULT 'scheduled',
-      reminder_sent INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS reminders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      appointment_id INTEGER NOT NULL,
-      reminder_time DATETIME NOT NULL,
-      sent INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
-    );
-  `);
+async function initializeDatabase() {
+  const client = await pool.connect();
   
-  console.log('Database tables ready.');
+  try {
+    // Clients table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS clients (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT,
+        phone TEXT,
+        address TEXT,
+        description TEXT,
+        tasks TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    console.log('Clients table ready.');
+
+    // Appointments table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS appointments (
+        id SERIAL PRIMARY KEY,
+        client_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        appointment_date TIMESTAMP NOT NULL,
+        duration INTEGER DEFAULT 60,
+        location TEXT,
+        status TEXT DEFAULT 'scheduled',
+        reminder_sent INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+      )
+    `);
+    
+    console.log('Appointments table ready.');
+
+    // Reminders table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS reminders (
+        id SERIAL PRIMARY KEY,
+        appointment_id INTEGER NOT NULL,
+        reminder_time TIMESTAMP NOT NULL,
+        sent INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+      )
+    `);
+    
+    console.log('Reminders table ready.');
+    console.log('Database tables initialized successfully.');
+    
+  } catch (err) {
+    console.error('Error initializing database:', err);
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 // Initialize on startup
-initializeDatabase();
+initializeDatabase().catch(console.error);
 
-module.exports = db;
+module.exports = pool;
 
 // Made with Bob

@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const cron = require('node-cron');
-const db = require('./database');
+const pool = require('./database');
 const { sendAllNotifications } = require('./notifications');
 require('dotenv').config();
 
@@ -17,31 +17,31 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // ==================== CLIENT ENDPOINTS ====================
 
 // Get all clients
-app.get('/api/clients', (req, res) => {
+app.get('/api/clients', async (req, res) => {
   try {
-    const clients = db.prepare('SELECT * FROM clients ORDER BY created_at DESC').all();
-    res.json({ clients });
+    const result = await pool.query('SELECT * FROM clients ORDER BY created_at DESC');
+    res.json({ clients: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // Get single client by ID
-app.get('/api/clients/:id', (req, res) => {
+app.get('/api/clients/:id', async (req, res) => {
   try {
-    const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
-    if (!client) {
+    const result = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) {
       res.status(404).json({ error: 'Client not found' });
       return;
     }
-    res.json({ client });
+    res.json({ client: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // Create new client
-app.post('/api/clients', (req, res) => {
+app.post('/api/clients', async (req, res) => {
   const { name, email, phone, address, description, tasks } = req.body;
   
   if (!name) {
@@ -50,13 +50,15 @@ app.post('/api/clients', (req, res) => {
   }
 
   try {
-    const stmt = db.prepare(`INSERT INTO clients (name, email, phone, address, description, tasks) 
-                             VALUES (?, ?, ?, ?, ?, ?)`);
-    const result = stmt.run(name, email, phone, address, description, tasks);
+    const result = await pool.query(
+      `INSERT INTO clients (name, email, phone, address, description, tasks) 
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [name, email, phone, address, description, tasks]
+    );
     
     res.json({
       message: 'Client created successfully',
-      client: { id: result.lastInsertRowid, name, email, phone, address, description, tasks }
+      client: result.rows[0]
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -64,16 +66,18 @@ app.post('/api/clients', (req, res) => {
 });
 
 // Update client
-app.put('/api/clients/:id', (req, res) => {
+app.put('/api/clients/:id', async (req, res) => {
   const { name, email, phone, address, description, tasks } = req.body;
   
   try {
-    const stmt = db.prepare(`UPDATE clients 
-                             SET name = ?, email = ?, phone = ?, address = ?, description = ?, tasks = ?, updated_at = CURRENT_TIMESTAMP
-                             WHERE id = ?`);
-    const result = stmt.run(name, email, phone, address, description, tasks, req.params.id);
+    const result = await pool.query(
+      `UPDATE clients 
+       SET name = $1, email = $2, phone = $3, address = $4, description = $5, tasks = $6, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $7 RETURNING *`,
+      [name, email, phone, address, description, tasks, req.params.id]
+    );
     
-    if (result.changes === 0) {
+    if (result.rows.length === 0) {
       res.status(404).json({ error: 'Client not found' });
       return;
     }
@@ -84,12 +88,11 @@ app.put('/api/clients/:id', (req, res) => {
 });
 
 // Delete client
-app.delete('/api/clients/:id', (req, res) => {
+app.delete('/api/clients/:id', async (req, res) => {
   try {
-    const stmt = db.prepare('DELETE FROM clients WHERE id = ?');
-    const result = stmt.run(req.params.id);
+    const result = await pool.query('DELETE FROM clients WHERE id = $1 RETURNING *', [req.params.id]);
     
-    if (result.changes === 0) {
+    if (result.rows.length === 0) {
       res.status(404).json({ error: 'Client not found' });
       return;
     }
@@ -102,47 +105,55 @@ app.delete('/api/clients/:id', (req, res) => {
 // ==================== APPOINTMENT ENDPOINTS ====================
 
 // Get all appointments
-app.get('/api/appointments', (req, res) => {
+app.get('/api/appointments', async (req, res) => {
   try {
-    const appointments = db.prepare(`SELECT a.*, c.name as client_name, c.email as client_email, c.phone as client_phone
-                                     FROM appointments a
-                                     LEFT JOIN clients c ON a.client_id = c.id
-                                     ORDER BY a.appointment_date ASC`).all();
-    res.json({ appointments });
+    const result = await pool.query(`
+      SELECT a.*, c.name as client_name, c.email as client_email, c.phone as client_phone
+      FROM appointments a
+      LEFT JOIN clients c ON a.client_id = c.id
+      ORDER BY a.appointment_date ASC
+    `);
+    res.json({ appointments: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // Get appointments for a specific client
-app.get('/api/clients/:id/appointments', (req, res) => {
+app.get('/api/clients/:id/appointments', async (req, res) => {
   try {
-    const appointments = db.prepare(`SELECT * FROM appointments WHERE client_id = ? ORDER BY appointment_date ASC`).all(req.params.id);
-    res.json({ appointments });
+    const result = await pool.query(
+      'SELECT * FROM appointments WHERE client_id = $1 ORDER BY appointment_date ASC',
+      [req.params.id]
+    );
+    res.json({ appointments: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // Get single appointment
-app.get('/api/appointments/:id', (req, res) => {
+app.get('/api/appointments/:id', async (req, res) => {
   try {
-    const appointment = db.prepare(`SELECT a.*, c.name as client_name, c.email as client_email, c.phone as client_phone
-                                    FROM appointments a
-                                    LEFT JOIN clients c ON a.client_id = c.id
-                                    WHERE a.id = ?`).get(req.params.id);
-    if (!appointment) {
+    const result = await pool.query(`
+      SELECT a.*, c.name as client_name, c.email as client_email, c.phone as client_phone
+      FROM appointments a
+      LEFT JOIN clients c ON a.client_id = c.id
+      WHERE a.id = $1
+    `, [req.params.id]);
+    
+    if (result.rows.length === 0) {
       res.status(404).json({ error: 'Appointment not found' });
       return;
     }
-    res.json({ appointment });
+    res.json({ appointment: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // Create new appointment
-app.post('/api/appointments', (req, res) => {
+app.post('/api/appointments', async (req, res) => {
   const { client_id, title, description, appointment_date, duration, location, status } = req.body;
   
   if (!client_id || !title || !appointment_date) {
@@ -150,38 +161,52 @@ app.post('/api/appointments', (req, res) => {
     return;
   }
 
+  const client = await pool.connect();
   try {
-    const stmt = db.prepare(`INSERT INTO appointments (client_id, title, description, appointment_date, duration, location, status) 
-                             VALUES (?, ?, ?, ?, ?, ?, ?)`);
-    const result = stmt.run(client_id, title, description, appointment_date, duration || 60, location, status || 'scheduled');
+    await client.query('BEGIN');
+    
+    const appointmentResult = await client.query(
+      `INSERT INTO appointments (client_id, title, description, appointment_date, duration, location, status) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [client_id, title, description, appointment_date, duration || 60, location, status || 'scheduled']
+    );
     
     // Create reminder (24 hours before appointment)
     const appointmentTime = new Date(appointment_date);
     const reminderTime = new Date(appointmentTime.getTime() - 24 * 60 * 60 * 1000);
     
-    const reminderStmt = db.prepare('INSERT INTO reminders (appointment_id, reminder_time) VALUES (?, ?)');
-    reminderStmt.run(result.lastInsertRowid, reminderTime.toISOString());
+    await client.query(
+      'INSERT INTO reminders (appointment_id, reminder_time) VALUES ($1, $2)',
+      [appointmentResult.rows[0].id, reminderTime.toISOString()]
+    );
+    
+    await client.query('COMMIT');
 
     res.json({
       message: 'Appointment created successfully',
-      appointment: { id: result.lastInsertRowid, client_id, title, description, appointment_date, duration, location, status }
+      appointment: appointmentResult.rows[0]
     });
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
 // Update appointment
-app.put('/api/appointments/:id', (req, res) => {
+app.put('/api/appointments/:id', async (req, res) => {
   const { client_id, title, description, appointment_date, duration, location, status } = req.body;
   
   try {
-    const stmt = db.prepare(`UPDATE appointments 
-                             SET client_id = ?, title = ?, description = ?, appointment_date = ?, duration = ?, location = ?, status = ?, updated_at = CURRENT_TIMESTAMP
-                             WHERE id = ?`);
-    const result = stmt.run(client_id, title, description, appointment_date, duration, location, status, req.params.id);
+    const result = await pool.query(
+      `UPDATE appointments 
+       SET client_id = $1, title = $2, description = $3, appointment_date = $4, duration = $5, location = $6, status = $7, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $8 RETURNING *`,
+      [client_id, title, description, appointment_date, duration, location, status, req.params.id]
+    );
     
-    if (result.changes === 0) {
+    if (result.rows.length === 0) {
       res.status(404).json({ error: 'Appointment not found' });
       return;
     }
@@ -192,12 +217,11 @@ app.put('/api/appointments/:id', (req, res) => {
 });
 
 // Delete appointment
-app.delete('/api/appointments/:id', (req, res) => {
+app.delete('/api/appointments/:id', async (req, res) => {
   try {
-    const stmt = db.prepare('DELETE FROM appointments WHERE id = ?');
-    const result = stmt.run(req.params.id);
+    const result = await pool.query('DELETE FROM appointments WHERE id = $1 RETURNING *', [req.params.id]);
     
-    if (result.changes === 0) {
+    if (result.rows.length === 0) {
       res.status(404).json({ error: 'Appointment not found' });
       return;
     }
@@ -214,13 +238,15 @@ async function checkReminders() {
   const now = new Date().toISOString();
   
   try {
-    const reminders = db.prepare(`SELECT r.*, a.*, c.name as client_name, c.email as client_email, c.phone as client_phone, c.address
-                                   FROM reminders r
-                                   JOIN appointments a ON r.appointment_id = a.id
-                                   JOIN clients c ON a.client_id = c.id
-                                   WHERE r.sent = 0 AND r.reminder_time <= ?`).all(now);
+    const result = await pool.query(`
+      SELECT r.*, a.*, c.name as client_name, c.email as client_email, c.phone as client_phone, c.address
+      FROM reminders r
+      JOIN appointments a ON r.appointment_id = a.id
+      JOIN clients c ON a.client_id = c.id
+      WHERE r.sent = 0 AND r.reminder_time <= $1
+    `, [now]);
     
-    for (const reminder of reminders) {
+    for (const reminder of result.rows) {
       console.log(`\n🔔 REMINDER: Appointment "${reminder.title}" with ${reminder.client_name} on ${reminder.appointment_date}`);
       
       // Preparar datos de la cita y cliente
@@ -249,10 +275,10 @@ async function checkReminders() {
       }
       
       // Mark reminder as sent
-      db.prepare('UPDATE reminders SET sent = 1 WHERE id = ?').run(reminder.id);
+      await pool.query('UPDATE reminders SET sent = 1 WHERE id = $1', [reminder.id]);
       
       // Mark appointment reminder as sent
-      db.prepare('UPDATE appointments SET reminder_sent = 1 WHERE id = ?').run(reminder.appointment_id);
+      await pool.query('UPDATE appointments SET reminder_sent = 1 WHERE id = $1', [reminder.appointment_id]);
     }
   } catch (err) {
     console.error('Error checking reminders:', err.message);
@@ -266,17 +292,20 @@ cron.schedule('*/15 * * * *', () => {
 });
 
 // Get upcoming appointments (next 7 days)
-app.get('/api/appointments/upcoming', (req, res) => {
+app.get('/api/appointments/upcoming', async (req, res) => {
   const now = new Date().toISOString();
   const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   
   try {
-    const appointments = db.prepare(`SELECT a.*, c.name as client_name, c.email as client_email, c.phone as client_phone
-                                     FROM appointments a
-                                     LEFT JOIN clients c ON a.client_id = c.id
-                                     WHERE a.appointment_date BETWEEN ? AND ?
-                                     ORDER BY a.appointment_date ASC`).all(now, nextWeek);
-    res.json({ appointments });
+    const result = await pool.query(`
+      SELECT a.*, c.name as client_name, c.email as client_email, c.phone as client_phone
+      FROM appointments a
+      LEFT JOIN clients c ON a.client_id = c.id
+      WHERE a.appointment_date BETWEEN $1 AND $2
+      ORDER BY a.appointment_date ASC
+    `, [now, nextWeek]);
+    
+    res.json({ appointments: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -285,19 +314,20 @@ app.get('/api/appointments/upcoming', (req, res) => {
 // ==================== STATISTICS ENDPOINTS ====================
 
 // Get dashboard statistics
-app.get('/api/stats', (req, res) => {
+app.get('/api/stats', async (req, res) => {
   try {
     const now = new Date().toISOString();
-    const totalClients = db.prepare('SELECT COUNT(*) as count FROM clients').get().count;
-    const totalAppointments = db.prepare('SELECT COUNT(*) as count FROM appointments').get().count;
-    const upcomingAppointments = db.prepare("SELECT COUNT(*) as count FROM appointments WHERE appointment_date >= ?").get(now).count;
-    const todayAppointments = db.prepare("SELECT COUNT(*) as count FROM appointments WHERE DATE(appointment_date) = DATE(?)").get(now).count;
+    
+    const totalClientsResult = await pool.query('SELECT COUNT(*) as count FROM clients');
+    const totalAppointmentsResult = await pool.query('SELECT COUNT(*) as count FROM appointments');
+    const upcomingAppointmentsResult = await pool.query('SELECT COUNT(*) as count FROM appointments WHERE appointment_date >= $1', [now]);
+    const todayAppointmentsResult = await pool.query('SELECT COUNT(*) as count FROM appointments WHERE DATE(appointment_date) = DATE($1)', [now]);
     
     res.json({
-      totalClients,
-      totalAppointments,
-      upcomingAppointments,
-      todayAppointments
+      totalClients: parseInt(totalClientsResult.rows[0].count),
+      totalAppointments: parseInt(totalAppointmentsResult.rows[0].count),
+      upcomingAppointments: parseInt(upcomingAppointmentsResult.rows[0].count),
+      todayAppointments: parseInt(todayAppointmentsResult.rows[0].count)
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -306,13 +336,14 @@ app.get('/api/stats', (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running' });
+  res.json({ status: 'OK', message: 'Server is running with PostgreSQL' });
 });
 
 // Start server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log('Using PostgreSQL database');
 });
 
 // Made with Bob

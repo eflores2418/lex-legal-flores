@@ -13,13 +13,14 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "better-sqlite3": "^11.0.0",
     "body-parser": "^2.2.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.8",
-    "better-sqlite3": "^11.0.0",
+    "pg": "^8.21.0",
     "twilio": "^6.0.2"
   }
 }
