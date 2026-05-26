@@ -39,7 +39,7 @@ async function initializeDatabase() {
         duration INTEGER DEFAULT 60,
         location TEXT,
         status TEXT DEFAULT 'scheduled',
-        reminder_sent INTEGER DEFAULT 0,
+        reminder_sent BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
@@ -54,7 +54,7 @@ async function initializeDatabase() {
         id SERIAL PRIMARY KEY,
         appointment_id INTEGER NOT NULL,
         reminder_time TIMESTAMP NOT NULL,
-        sent INTEGER DEFAULT 0,
+        sent BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
       )

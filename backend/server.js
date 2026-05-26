@@ -119,6 +119,26 @@ app.get('/api/appointments', async (req, res) => {
   }
 });
 
+// Get upcoming appointments (next 7 days) - MUST BE BEFORE /:id route
+app.get('/api/appointments/upcoming', async (req, res) => {
+  const now = new Date().toISOString();
+  const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  
+  try {
+    const result = await pool.query(`
+      SELECT a.*, c.name as client_name, c.email as client_email, c.phone as client_phone
+      FROM appointments a
+      LEFT JOIN clients c ON a.client_id = c.id
+      WHERE a.appointment_date BETWEEN $1 AND $2
+      ORDER BY a.appointment_date ASC
+    `, [now, nextWeek]);
+    
+    res.json({ appointments: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get appointments for a specific client
 app.get('/api/clients/:id/appointments', async (req, res) => {
   try {
@@ -243,7 +263,7 @@ async function checkReminders() {
       FROM reminders r
       JOIN appointments a ON r.appointment_id = a.id
       JOIN clients c ON a.client_id = c.id
-      WHERE r.sent = 0 AND r.reminder_time <= $1
+      WHERE r.sent = FALSE AND r.reminder_time <= $1
     `, [now]);
     
     for (const reminder of result.rows) {
@@ -275,10 +295,10 @@ async function checkReminders() {
       }
       
       // Mark reminder as sent
-      await pool.query('UPDATE reminders SET sent = 1 WHERE id = $1', [reminder.id]);
+      await pool.query('UPDATE reminders SET sent = TRUE WHERE id = $1', [reminder.id]);
       
       // Mark appointment reminder as sent
-      await pool.query('UPDATE appointments SET reminder_sent = 1 WHERE id = $1', [reminder.appointment_id]);
+      await pool.query('UPDATE appointments SET reminder_sent = TRUE WHERE id = $1', [reminder.appointment_id]);
     }
   } catch (err) {
     console.error('Error checking reminders:', err.message);
@@ -289,26 +309,6 @@ async function checkReminders() {
 cron.schedule('*/15 * * * *', () => {
   console.log('Checking for reminders...');
   checkReminders();
-});
-
-// Get upcoming appointments (next 7 days)
-app.get('/api/appointments/upcoming', async (req, res) => {
-  const now = new Date().toISOString();
-  const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  
-  try {
-    const result = await pool.query(`
-      SELECT a.*, c.name as client_name, c.email as client_email, c.phone as client_phone
-      FROM appointments a
-      LEFT JOIN clients c ON a.client_id = c.id
-      WHERE a.appointment_date BETWEEN $1 AND $2
-      ORDER BY a.appointment_date ASC
-    `, [now, nextWeek]);
-    
-    res.json({ appointments: result.rows });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 // ==================== STATISTICS ENDPOINTS ====================

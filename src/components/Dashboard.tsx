@@ -19,15 +19,25 @@ const Dashboard: React.FC = () => {
 
   const loadDashboardData = async () => {
     try {
-      const [statsData, appointmentsData] = await Promise.all([
-        statsAPI.get(),
-        appointmentAPI.getUpcoming(),
-      ]);
+      console.log('Loading dashboard data...');
+      
+      const statsData = await statsAPI.get();
+      console.log('Stats loaded:', statsData);
       setStats(statsData);
+      
+      const appointmentsData = await appointmentAPI.getUpcoming();
+      console.log('Upcoming appointments loaded:', appointmentsData);
       setUpcomingAppointments(appointmentsData);
-    } catch (error) {
+      
+    } catch (error: any) {
       console.error('Error loading dashboard data:', error);
-      alert('Error al cargar los datos del panel. Asegúrese de que el servidor backend esté ejecutándose.');
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      alert(`Error al cargar los datos del panel: ${error.message}\n\nAsegúrese de que el servidor backend esté ejecutándose.`);
     } finally {
       setLoading(false);
     }
