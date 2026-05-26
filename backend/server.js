@@ -287,16 +287,17 @@ app.get('/api/appointments/upcoming', (req, res) => {
 // Get dashboard statistics
 app.get('/api/stats', (req, res) => {
   try {
+    const now = new Date().toISOString();
     const totalClients = db.prepare('SELECT COUNT(*) as count FROM clients').get().count;
     const totalAppointments = db.prepare('SELECT COUNT(*) as count FROM appointments').get().count;
-    const upcomingAppointments = db.prepare("SELECT COUNT(*) as count FROM appointments WHERE appointment_date > ? AND status = 'scheduled'").get(new Date().toISOString()).count;
-    const completedAppointments = db.prepare("SELECT COUNT(*) as count FROM appointments WHERE status = 'completed'").get().count;
+    const upcomingAppointments = db.prepare("SELECT COUNT(*) as count FROM appointments WHERE appointment_date >= ?").get(now).count;
+    const todayAppointments = db.prepare("SELECT COUNT(*) as count FROM appointments WHERE DATE(appointment_date) = DATE(?)").get(now).count;
     
     res.json({
       totalClients,
       totalAppointments,
       upcomingAppointments,
-      completedAppointments
+      todayAppointments
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
