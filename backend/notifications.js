@@ -66,7 +66,7 @@ async function sendEmailNotification(appointment, client) {
             <p style="margin: 10px 0;"><strong>📱 Teléfono:</strong> ${client.phone || 'No especificado'}</p>
             <p style="margin: 10px 0;"><strong>🕐 Fecha y Hora:</strong> ${formattedDate}</p>
             <p style="margin: 10px 0;"><strong>⏱️ Duración:</strong> ${appointment.duration} minutos</p>
-            ${appointment.location ? `<p style="margin: 10px 0;"><strong>📍 Ubicación:</strong> ${appointment.location}</p>` : ''}
+            ${appointment.location ? `<p style="margin: 10px 0;"><strong>📍 Tipo de Cita:</strong> ${appointment.location}</p>` : ''}
           </div>
           
           ${appointment.description ? `
@@ -130,7 +130,7 @@ async function sendWhatsAppNotification(appointment, client) {
 
 🕐 *Fecha y Hora:* ${formattedDate}
 ⏱️ *Duración:* ${appointment.duration} minutos
-${appointment.location ? `📍 *Ubicación:* ${appointment.location}` : ''}
+${appointment.location ? `📍 *Tipo de Cita:* ${appointment.location}` : ''}
 
 ${appointment.description ? `📝 *Notas:* ${appointment.description}` : ''}
 

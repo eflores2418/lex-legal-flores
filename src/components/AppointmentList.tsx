@@ -116,7 +116,7 @@ const AppointmentList: React.FC = () => {
                 <th>Fecha y Hora</th>
                 <th>Título</th>
                 <th>Cliente</th>
-                <th>Ubicación</th>
+                <th>Tipo de Cita</th>
                 <th>Estado</th>
                 <th>Duración</th>
                 <th>Acciones</th>

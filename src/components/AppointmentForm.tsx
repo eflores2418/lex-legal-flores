@@ -148,17 +148,19 @@ const AppointmentForm: React.FC = () => {
 
           <div className="form-group">
             <label htmlFor="title">
-              Título <span className="required">*</span>
+              Tipo de Consulta <span className="required">*</span>
             </label>
-            <input
-              type="text"
+            <select
               id="title"
               name="title"
               value={formData.title}
               onChange={handleChange}
               required
-              placeholder="ej., Consulta Inicial, Audiencia, Revisión de Documentos"
-            />
+            >
+              <option value="">Seleccione el tipo de consulta</option>
+              <option value="Cita por Primera Vez">Cita por Primera Vez</option>
+              <option value="Continuación de Cita">Continuación de Cita</option>
+            </select>
           </div>
 
           <div className="form-row">
@@ -191,15 +193,17 @@ const AppointmentForm: React.FC = () => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="location">Ubicación</label>
-            <input
-              type="text"
+            <label htmlFor="location">Tipo de Cita</label>
+            <select
               id="location"
               name="location"
               value={formData.location}
               onChange={handleChange}
-              placeholder="Oficina, Tribunal, Videollamada, etc."
-            />
+            >
+              <option value="">Seleccione el tipo</option>
+              <option value="Presencial">Presencial</option>
+              <option value="Virtual">Virtual</option>
+            </select>
           </div>
 
           <div className="form-group">

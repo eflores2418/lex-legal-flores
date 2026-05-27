@@ -126,7 +126,7 @@ const Dashboard: React.FC = () => {
                   </p>
                   {appointment.location && (
                     <p>
-                      <strong>Ubicación:</strong> {appointment.location}
+                      <strong>Tipo de Cita:</strong> {appointment.location}
                     </p>
                   )}
                   {appointment.description && (
