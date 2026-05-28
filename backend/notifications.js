@@ -138,16 +138,19 @@ ${appointment.description ? `📝 *Notas:* ${appointment.description}` : ''}
   `.trim();
 
   try {
-    const whatsappTo = process.env.WHATSAPP_TO || 'whatsapp:+50672898780';
+    const whatsappTo = process.env.TWILIO_WHATSAPP_TO || process.env.NOTIFICATION_WHATSAPP || '+50672332253';
     const whatsappFrom = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886';
+    
+    // Asegurarse de que el número "to" tenga el prefijo whatsapp:
+    const formattedTo = whatsappTo.startsWith('whatsapp:') ? whatsappTo : `whatsapp:${whatsappTo}`;
     
     await twilioClient.messages.create({
       body: message,
       from: whatsappFrom,
-      to: whatsappTo
+      to: formattedTo
     });
     
-    console.log(`📱 WhatsApp sent to ${whatsappTo} for appointment: ${appointment.title}`);
+    console.log(`📱 WhatsApp sent to ${formattedTo} for appointment: ${appointment.title}`);
     return { success: true, message: 'WhatsApp sent successfully' };
   } catch (error) {
     console.error('❌ Error sending WhatsApp:', error.message);
