@@ -1,12 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { appointmentAPI, Appointment } from '../services/api';
+import ConfirmDialog from './ConfirmDialog';
 import './AppointmentList.css';
 
 const AppointmentList: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('all');
+  const [deleteDialog, setDeleteDialog] = useState<{
+    isOpen: boolean;
+    appointmentId: number | null;
+    appointmentTitle: string;
+  }>({
+    isOpen: false,
+    appointmentId: null,
+    appointmentTitle: '',
+  });
 
   useEffect(() => {
     loadAppointments();
@@ -18,23 +28,33 @@ const AppointmentList: React.FC = () => {
       setAppointments(data);
     } catch (error) {
       console.error('Error loading appointments:', error);
-      alert('Error al cargar citas. Asegúrese de que el servidor backend esté ejecutándose.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: number, title: string) => {
-    if (window.confirm(`¿Está seguro de que desea eliminar la cita "${title}"?`)) {
+  const handleDeleteClick = (id: number, title: string) => {
+    setDeleteDialog({
+      isOpen: true,
+      appointmentId: id,
+      appointmentTitle: title,
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteDialog.appointmentId) {
       try {
-        await appointmentAPI.delete(id);
-        setAppointments(appointments.filter(apt => apt.id !== id));
-        alert('Cita eliminada exitosamente');
+        await appointmentAPI.delete(deleteDialog.appointmentId);
+        setAppointments(appointments.filter(apt => apt.id !== deleteDialog.appointmentId));
+        setDeleteDialog({ isOpen: false, appointmentId: null, appointmentTitle: '' });
       } catch (error) {
         console.error('Error deleting appointment:', error);
-        alert('Error al eliminar cita');
       }
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog({ isOpen: false, appointmentId: null, appointmentTitle: '' });
   };
 
   const formatDate = (dateString: string) => {
@@ -157,7 +177,7 @@ const AppointmentList: React.FC = () => {
                       Editar
                     </Link>
                     <button
-                      onClick={() => handleDelete(appointment.id!, appointment.title)}
+                      onClick={() => handleDeleteClick(appointment.id!, appointment.title)}
                       className="btn btn-danger btn-sm"
                     >
                       Eliminar
@@ -169,6 +189,17 @@ const AppointmentList: React.FC = () => {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        title="Eliminar Cita"
+        message={`¿Está seguro de que desea eliminar la cita "${deleteDialog.appointmentTitle}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        type="danger"
+      />
     </div>
   );
 };

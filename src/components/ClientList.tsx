@@ -1,12 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { clientAPI, Client } from '../services/api';
+import ConfirmDialog from './ConfirmDialog';
 import './ClientList.css';
 
 const ClientList: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteDialog, setDeleteDialog] = useState<{
+    isOpen: boolean;
+    clientId: number | null;
+    clientName: string;
+  }>({
+    isOpen: false,
+    clientId: null,
+    clientName: '',
+  });
 
   useEffect(() => {
     loadClients();
@@ -18,23 +28,33 @@ const ClientList: React.FC = () => {
       setClients(data);
     } catch (error) {
       console.error('Error loading clients:', error);
-      alert('Error al cargar clientes. Asegúrese de que el servidor backend esté ejecutándose.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (window.confirm(`¿Está seguro de que desea eliminar a ${name}? Esto también eliminará todas las citas asociadas.`)) {
+  const handleDeleteClick = (id: number, name: string) => {
+    setDeleteDialog({
+      isOpen: true,
+      clientId: id,
+      clientName: name,
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteDialog.clientId) {
       try {
-        await clientAPI.delete(id);
-        setClients(clients.filter(client => client.id !== id));
-        alert('Cliente eliminado exitosamente');
+        await clientAPI.delete(deleteDialog.clientId);
+        setClients(clients.filter(client => client.id !== deleteDialog.clientId));
+        setDeleteDialog({ isOpen: false, clientId: null, clientName: '' });
       } catch (error) {
         console.error('Error deleting client:', error);
-        alert('Error al eliminar cliente');
       }
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog({ isOpen: false, clientId: null, clientName: '' });
   };
 
   const filteredClients = clients.filter(client =>
@@ -112,7 +132,7 @@ const ClientList: React.FC = () => {
                   Editar
                 </Link>
                 <button
-                  onClick={() => handleDelete(client.id!, client.name)}
+                  onClick={() => handleDeleteClick(client.id!, client.name)}
                   className="btn btn-danger"
                 >
                   Eliminar
@@ -122,6 +142,17 @@ const ClientList: React.FC = () => {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        title="Eliminar Cliente"
+        message={`¿Está seguro de que desea eliminar a ${deleteDialog.clientName}? Esto también eliminará todas las citas asociadas. Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        type="danger"
+      />
     </div>
   );
 };
