@@ -69,6 +69,18 @@ const AppointmentList: React.FC = () => {
     });
   };
 
+  const translateStatus = (status: string | undefined) => {
+    if (!status) return 'Desconocido';
+    const translations: { [key: string]: string } = {
+      'scheduled': 'Programada',
+      'confirmed': 'Confirmada',
+      'completed': 'Completada',
+      'cancelled': 'Cancelada',
+      'pending': 'Pendiente'
+    };
+    return translations[status] || status;
+  };
+
   const filterAppointments = (appointments: Appointment[]) => {
     const now = new Date();
     
@@ -165,7 +177,7 @@ const AppointmentList: React.FC = () => {
                   <td>{appointment.location || '-'}</td>
                   <td>
                     <span className={`status-badge status-${appointment.status}`}>
-                      {appointment.status}
+                      {translateStatus(appointment.status)}
                     </span>
                   </td>
                   <td>{appointment.duration} min</td>
